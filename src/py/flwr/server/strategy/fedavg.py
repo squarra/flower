@@ -18,7 +18,8 @@ Paper: arxiv.org/abs/1602.05629
 """
 
 
-from logging import WARNING
+from logging import INFO, WARNING
+import os
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from flwr.common import (
@@ -36,6 +37,7 @@ from flwr.common import (
 from flwr.common.logger import log
 from flwr.server.client_manager import ClientManager
 from flwr.server.client_proxy import ClientProxy
+import numpy as np
 
 from .aggregate import aggregate, aggregate_inplace, weighted_loss_avg
 from .strategy import Strategy
@@ -110,6 +112,7 @@ class FedAvg(Strategy):
         fit_metrics_aggregation_fn: Optional[MetricsAggregationFn] = None,
         evaluate_metrics_aggregation_fn: Optional[MetricsAggregationFn] = None,
         inplace: bool = True,
+        save_dir="saved_models"
     ) -> None:
         super().__init__()
 
@@ -132,6 +135,8 @@ class FedAvg(Strategy):
         self.fit_metrics_aggregation_fn = fit_metrics_aggregation_fn
         self.evaluate_metrics_aggregation_fn = evaluate_metrics_aggregation_fn
         self.inplace = inplace
+        self.save_dir = save_dir
+        os.makedirs(self.save_dir, exist_ok=True)
 
     def __repr__(self) -> str:
         """Compute a string representation of the strategy."""
@@ -240,6 +245,9 @@ class FedAvg(Strategy):
                 for _, fit_res in results
             ]
             aggregated_ndarrays = aggregate(weights_results)
+
+        log(INFO, f"Saving round {server_round} aggregated_ndarrays to {self.save_dir}")
+        np.savez(f"{self.save_dir}/round{server_round}.npz", *aggregated_ndarrays)
 
         parameters_aggregated = ndarrays_to_parameters(aggregated_ndarrays)
 
